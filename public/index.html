@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mac Audio Streamer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .logo {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .status {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin: 1.5rem 0;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 0.8rem 1.5rem;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn.playing {
+            background: #4CAF50;
+            border-color: #4CAF50;
+        }
+
+        .btn.paused {
+            background: #FF9800;
+            border-color: #FF9800;
+        }
+
+        .volume-control {
+            width: 100%;
+            margin: 1rem 0;
+        }
+
+        .volume-slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.2);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+        }
+
+        .volume-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            border: none;
+        }
+
+        .info {
+            margin-top: 1.5rem;
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .connection-status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ccc;
+            margin-right: 0.5rem;
+        }
+
+        .connection-status.connected {
+            background: #4CAF50;
+        }
+
+        .connection-status.disconnected {
+            background: #f44336;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 1.5rem;
+                margin: 1rem;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            .logo {
+                font-size: 2.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🎵</div>
+        <h1>Mac Audio Streamer</h1>
+        
+        <div class="status">
+            <span class="connection-status" id="connectionStatus"></span>
+            <span id="statusText">Connecting...</span>
+        </div>
+
+        <div class="controls">
+            <button class="btn" id="playBtn">▶️ Play</button>
+            <button class="btn" id="pauseBtn">⏸️ Pause</button>
+            <button class="btn" id="stopBtn">⏹️ Stop</button>
+        </div>
+
+        <div class="volume-control">
+            <label for="volumeSlider">Volume: <span id="volumeValue">50%</span></label>
+            <input type="range" id="volumeSlider" class="volume-slider" min="0" max="100" value="50">
+        </div>
+
+        <div class="info">
+            <p>Streaming audio from your Mac to this device</p>
+            <p>Make sure both devices are on the same WiFi network</p>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let audioContext;
+        let audioSource;
+        let audioBuffer;
+        let isPlaying = false;
+        let currentVolume = 0.5;
+
+        // DOM elements
+        const playBtn = document.getElementById('playBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const volumeValue = document.getElementById('volumeValue');
+        const statusText = document.getElementById('statusText');
+        const connectionStatus = document.getElementById('connectionStatus');
+
+        // Initialize audio context
+        function initAudio() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                console.log('Audio context initialized');
+            } catch (error) {
+                console.error('Error initializing audio context:', error);
+                statusText.textContent = 'Audio not supported in this browser';
+            }
+        }
+
+        // Play audio stream
+        function playAudio() {
+            if (!audioContext || isPlaying) return;
+
+            try {
+                const audio = new Audio('/audio');
+                audio.volume = currentVolume;
+                
+                audio.addEventListener('canplay', () => {
+                    isPlaying = true;
+                    playBtn.classList.add('playing');
+                    pauseBtn.classList.remove('paused');
+                    statusText.textContent = 'Playing audio stream...';
+                    console.log('Audio stream started');
+                });
+
+                audio.addEventListener('ended', () => {
+                    isPlaying = false;
+                    playBtn.classList.remove('playing');
+                    statusText.textContent = 'Stream ended';
+                });
+
+                audio.addEventListener('error', (error) => {
+                    console.error('Audio error:', error);
+                    statusText.textContent = 'Error playing audio stream';
+                    isPlaying = false;
+                    playBtn.classList.remove('playing');
+                });
+
+                audio.play();
+            } catch (error) {
+                console.error('Error playing audio:', error);
+                statusText.textContent = 'Error starting audio stream';
+            }
+        }
+
+        // Pause audio
+        function pauseAudio() {
+            if (isPlaying) {
+                isPlaying = false;
+                playBtn.classList.remove('playing');
+                pauseBtn.classList.add('paused');
+                statusText.textContent = 'Audio paused';
+                // Note: We can't actually pause the stream, just stop it
+            }
+        }
+
+        // Stop audio
+        function stopAudio() {
+            isPlaying = false;
+            playBtn.classList.remove('playing');
+            pauseBtn.classList.remove('paused');
+            statusText.textContent = 'Audio stopped';
+            // Reload the page to stop the stream
+            location.reload();
+        }
+
+        // Update volume
+        function updateVolume(value) {
+            currentVolume = value / 100;
+            volumeValue.textContent = value + '%';
+            
+            if (audioSource && audioSource.gain) {
+                audioSource.gain.value = currentVolume;
+            }
+        }
+
+        // Event listeners
+        playBtn.addEventListener('click', playAudio);
+        pauseBtn.addEventListener('click', pauseAudio);
+        stopBtn.addEventListener('click', stopAudio);
+        
+        volumeSlider.addEventListener('input', (e) => {
+            updateVolume(e.target.value);
+        });
+
+        // Socket.io events
+        socket.on('connect', () => {
+            connectionStatus.classList.add('connected');
+            statusText.textContent = 'Connected to Mac';
+            initAudio();
+        });
+
+        socket.on('disconnect', () => {
+            connectionStatus.classList.remove('connected');
+            connectionStatus.classList.add('disconnected');
+            statusText.textContent = 'Disconnected from Mac';
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            connectionStatus.classList.add('disconnected');
+        });
+    </script>
+</body>
+</html>
