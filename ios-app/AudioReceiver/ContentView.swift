@@ -10,6 +10,28 @@ struct ContentView: View {
     
     var body: some View {
         VStack(spacing: 30) {
+            // App Logo
+            VStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(LinearGradient(
+                            gradient: Gradient(colors: [.blue, .purple]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
+                        .frame(width: 100, height: 100)
+                        .shadow(color: .blue.opacity(0.3), radius: 10, x: 0, y: 5)
+                    
+                    Image(systemName: "speaker.wave.3.fill")
+                        .font(.system(size: 50))
+                        .foregroundColor(.white)
+                }
+                
+                Text("🎵")
+                    .font(.system(size: 30))
+            }
+            .padding(.top, 20)
+            
             Text("Audio Receiver")
                 .font(.largeTitle)
                 .fontWeight(.bold)
