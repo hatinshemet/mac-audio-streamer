@@ -14,10 +14,10 @@ Stream audio from your Mac to your iPhone with minimal latency, optimized for MF
 
 ## Project Structure
 
-This project consists of two parts:
+This repository contains both parts of the audio streaming solution:
 
-1. **Mac Server** (`/audio-streamer/`) - Node.js servers for audio capture and QR code generation
-2. **iOS App** (`/AudioReceiver/`) - Native iOS app for receiving and playing audio
+1. **Mac Server** (root directory) - Node.js servers for audio capture and QR code generation
+2. **iOS App** (`/ios-app/`) - Native iOS app for receiving and playing audio
 
 ## Prerequisites
 
@@ -67,7 +67,7 @@ ffmpeg -version
 5. **Note the IP address** shown in the terminal output
 
 ### 2. Setup iOS App
-1. **Open** `AudioReceiver.xcodeproj` in Xcode
+1. **Open** `ios-app/AudioReceiver.xcodeproj` in Xcode
 2. **Build and run** the app on your iPhone
 3. **Scan the QR code** displayed on your Mac
 4. **Tap "Start Receiving"** to begin audio streaming
