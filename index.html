@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Audio Streamer QR Code</title>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     <style>
         body { 
             font-family: Arial, sans-serif; 
@@ -35,6 +35,15 @@
             padding: 20px;
             background: #f8f9fa;
             border-radius: 10px;
+        }
+        .qr-code table {
+            margin: 0 auto;
+            border-collapse: collapse;
+        }
+        .qr-code td {
+            width: 8px;
+            height: 8px;
+            border: none;
         }
         .info { 
             background: #e8f4f8; 
@@ -111,20 +120,19 @@
     </div>
 
     <script>
-        // Generate QR code
+        // Generate QR code using qrcode-generator library
         const connectionString = '87.70.229.34:3001';
         
-        QRCode.toCanvas(document.getElementById('qrcode'), connectionString, {
-            width: 300,
-            margin: 2,
-            color: {
-                dark: '#000000',
-                light: '#FFFFFF'
-            }
-        }, function (error) {
-            if (error) console.error(error);
-            console.log('QR code generated successfully!');
-        });
+        // Create QR code
+        const qr = qrcode(0, 'M');
+        qr.addData(connectionString);
+        qr.make();
+        
+        // Generate HTML table for QR code
+        const qrTable = qr.createTableTag(4, 8);
+        document.getElementById('qrcode').innerHTML = qrTable;
+        
+        console.log('QR code generated successfully!');
     </script>
 </body>
 </html>
