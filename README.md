@@ -1,24 +1,35 @@
 # Mac Audio Streamer 🎵
 
-Stream audio from your Mac to your iPhone (or any other device) over your local WiFi network!
+Stream audio from your Mac to your iPhone with minimal latency, optimized for MFi hearing aid compatibility!
 
 ## Features
 
-- 🎧 **Real-time audio streaming** from Mac to iPhone
-- 📱 **Mobile-friendly web interface** that works on any device
-- 🔊 **Volume control** and playback controls
-- 🌐 **Cross-platform** - works on any device with a web browser
+- 🎧 **Real-time audio streaming** from Mac to iPhone with sub-100ms latency
+- 📱 **Native iOS app** with QR code connection for easy setup
+- 🔊 **MFi hearing aid support** - stream directly to your hearing aids
+- 🎯 **QR code scanning** - no manual IP entry required
+- 🌐 **UDP streaming** - optimized for low latency audio
 - 🔒 **Local network only** - secure and private
-- 🚀 **Native iOS app coming soon** - for even better performance!
+- 🚀 **Perfect for video calls** - audio syncs with video content
+
+## Project Structure
+
+This project consists of two parts:
+
+1. **Mac Server** (`/audio-streamer/`) - Node.js servers for audio capture and QR code generation
+2. **iOS App** (`/AudioReceiver/`) - Native iOS app for receiving and playing audio
 
 ## Prerequisites
 
-Before you start, make sure you have:
-
+### Mac Requirements
 1. **Node.js** installed on your Mac (version 14 or higher)
 2. **FFmpeg** installed on your Mac
-3. **BlackHole 2ch** virtual audio driver (for system audio capture)
-4. Both your Mac and iPhone on the **same WiFi network**
+3. Both your Mac and iPhone on the **same WiFi network**
+
+### iOS Requirements
+1. **Xcode** (for building the app)
+2. **iOS 14.0+** device
+3. **Developer mode** enabled (for testing) or App Store distribution
 
 ### Installing Prerequisites
 
@@ -39,47 +50,44 @@ brew install ffmpeg
 ffmpeg -version
 ```
 
-#### Install BlackHole (Required for Mac M1)
-```bash
-# Using Homebrew
-brew install blackhole-2ch
-
-# Or download from https://existential.audio/blackhole/
-```
-
 ## Quick Start
 
+### 1. Setup Mac Server
 1. **Clone or download** this project to your Mac
 2. **Open Terminal** and navigate to the project folder
 3. **Install dependencies**:
    ```bash
    npm install
    ```
-4. **Set BlackHole as audio output**:
-   - Go to System Preferences > Sound > Output
-   - Select "BlackHole 2ch" as your output device
-5. **Start the server**:
+4. **Start the servers**:
    ```bash
-   npm start
+   node udp-server.js
+   node qr-server.js
    ```
-6. **Note the IP address** shown in the terminal output
-7. **On your iPhone**, open Safari and go to `http://[YOUR_MAC_IP]:3000`
+5. **Note the IP address** shown in the terminal output
+
+### 2. Setup iOS App
+1. **Open** `AudioReceiver.xcodeproj` in Xcode
+2. **Build and run** the app on your iPhone
+3. **Scan the QR code** displayed on your Mac
+4. **Tap "Start Receiving"** to begin audio streaming
 
 ## Usage
 
 ### Starting the Stream
 
-1. Run the server on your Mac
-2. Open the web interface on your iPhone
-3. Click the **Play** button to start streaming
-4. Adjust volume using the slider
-5. Use **Pause** or **Stop** to control playback
+1. **Start both servers** on your Mac (`udp-server.js` and `qr-server.js`)
+2. **Open the iOS app** on your iPhone
+3. **Scan the QR code** displayed on your Mac
+4. **Tap "Start Receiving"** to begin audio streaming
+5. **Audio will play** through your iPhone speakers and connected MFi hearing aids
 
 ### Important Notes
 
-- **Your Mac speakers will be silent** when BlackHole is selected as output
-- **Audio goes to BlackHole** → **FFmpeg captures it** → **iPhone receives it**
-- **Perfect for hearing aids** - stream Zoom calls, music, etc. to your iPhone
+- **System audio is captured** directly from your Mac using FFmpeg
+- **UDP streaming** provides minimal latency for real-time audio
+- **Perfect for hearing aids** - stream Zoom calls, music, videos to your iPhone
+- **No manual IP entry** - QR code scanning handles connection automatically
 
 ## Troubleshooting
 
@@ -138,14 +146,15 @@ PORT=8080 npm start
 - No audio data is stored or transmitted outside your network
 - The web interface is accessible to anyone on your WiFi network
 
-## Coming Soon: Native iOS App 🚀
+## iOS App Features 🚀
 
-We're currently developing a native iOS app that will:
-- **Eliminate browser limitations** for better performance
-- **Provide lower latency** audio streaming
-- **Include MFI hearing aid support** for accessibility
-- **Offer a simple, clean interface** (play/pause + connection status)
-- **Integrate seamlessly** with your existing Mac setup
+The native iOS app provides:
+- **QR code scanning** for easy connection setup
+- **Real-time audio processing** with AVAudioEngine
+- **MFi hearing aid compatibility** for accessibility
+- **Minimal latency** UDP audio streaming
+- **Clean, simple interface** with connection status
+- **Automatic audio route management** for speakers and Bluetooth
 
 ## Support
 
