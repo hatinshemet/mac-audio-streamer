@@ -8,16 +8,23 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "socket.io": "^4.7.2",
-    "node-rtsp-stream": "^0.0.9",
+    "express": "^4.21.2",
     "fluent-ffmpeg": "^2.1.2",
+    "mdns": "^2.7.2",
+    "node-rtsp-stream": "^0.0.9",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.7.2",
     "ws": "^8.13.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
   },
-  "keywords": ["audio", "streaming", "mac", "iphone"],
+  "keywords": [
+    "audio",
+    "streaming",
+    "mac",
+    "iphone"
+  ],
   "author": "Your Name",
   "license": "MIT"
 }
