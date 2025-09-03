@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Audio Streamer QR Code</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     <style>
         body { 
             font-family: Arial, sans-serif; 
@@ -36,14 +35,9 @@
             background: #f8f9fa;
             border-radius: 10px;
         }
-        .qr-code table {
-            margin: 0 auto;
-            border-collapse: collapse;
-        }
-        .qr-code td {
-            width: 8px;
-            height: 8px;
-            border: none;
+        .qr-code img {
+            max-width: 300px;
+            height: auto;
         }
         .info { 
             background: #e8f4f8; 
@@ -86,6 +80,17 @@
             border-radius: 3px;
             font-family: 'Courier New', monospace;
         }
+        .manual-entry {
+            background: #d1ecf1;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #17a2b8;
+        }
+        .manual-entry h3 {
+            margin-top: 0;
+            color: #0c5460;
+        }
     </style>
 </head>
 <body>
@@ -94,7 +99,7 @@
         <p class="subtitle">Connect your iPhone to stream Mac audio</p>
         
         <div class="qr-code">
-            <canvas id="qrcode"></canvas>
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=87.70.229.34:3001" alt="QR Code for 87.70.229.34:3001">
         </div>
         
         <div class="info">
@@ -103,12 +108,19 @@
             Port: <code>3001</code>
         </div>
         
+        <div class="manual-entry">
+            <h3>📝 Manual Entry (Alternative)</h3>
+            <p>If QR code scanning doesn't work, you can manually enter:</p>
+            <p><strong>IP:</strong> 87.70.229.34<br>
+            <strong>Port:</strong> 3001</p>
+        </div>
+        
         <div class="instructions">
             <h3>📱 How to Connect:</h3>
             <ol>
                 <li>Open your AudioReceiver app on iPhone</li>
-                <li>Tap "Scan QR Code"</li>
-                <li>Point camera at this QR code</li>
+                <li>Tap "Scan QR Code" and scan the code above</li>
+                <li>OR manually enter the IP and port above</li>
                 <li>Tap "Start Receiving" to begin streaming</li>
             </ol>
         </div>
@@ -118,21 +130,5 @@
             <strong>Note:</strong> Make sure your Mac's UDP server is running on port 3001
         </div>
     </div>
-
-    <script>
-        // Generate QR code using qrcode-generator library
-        const connectionString = '87.70.229.34:3001';
-        
-        // Create QR code
-        const qr = qrcode(0, 'M');
-        qr.addData(connectionString);
-        qr.make();
-        
-        // Generate HTML table for QR code
-        const qrTable = qr.createTableTag(4, 8);
-        document.getElementById('qrcode').innerHTML = qrTable;
-        
-        console.log('QR code generated successfully!');
-    </script>
 </body>
 </html>
