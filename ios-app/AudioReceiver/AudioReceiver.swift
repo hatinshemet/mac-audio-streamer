@@ -1,6 +1,7 @@
 import Foundation
 import AVFoundation
 import Network
+import UIKit
 
 class AudioReceiver: ObservableObject {
     @Published var isReceiving = false
@@ -10,9 +11,11 @@ class AudioReceiver: ObservableObject {
     private var playerNode: AVAudioPlayerNode?
     private var udpConnection: NWConnection?
     private let port: UInt16 = 3001
+    private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
     
     func startReceiving() {
         status = "Starting..."
+        setupBackgroundTask()
         setupAudioSession()
         setupAudioEngine()
         configureAudioRoute()
@@ -23,6 +26,7 @@ class AudioReceiver: ObservableObject {
         status = "Stopping..."
         audioEngine?.stop()
         udpConnection?.cancel()
+        endBackgroundTask()
         isReceiving = false
         audioBufferCount = 0
         status = "Ready"
@@ -61,19 +65,32 @@ class AudioReceiver: ObservableObject {
     private func setupAudioSession() {
         do {
             let audioSession = AVAudioSession.sharedInstance()
-            // Use .playback with speaker option for better compatibility
-            try audioSession.setCategory(.playback, mode: .default, options: [.defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP])
-            try audioSession.setActive(true)
+            
+            // Configure for background audio playback with hearing aid support
+            try audioSession.setCategory(
+                .playback, 
+                mode: .default, 
+                options: [
+                    .defaultToSpeaker, 
+                    .allowBluetooth, 
+                    .allowBluetoothA2DP,
+                    .mixWithOthers  // Allow mixing with other audio (like Zoom)
+                ]
+            )
+            
+            // Enable background audio
+            try audioSession.setActive(true, options: [])
             
             // Check current audio route
             let currentRoute = audioSession.currentRoute
             let outputDescription = currentRoute.outputs.map { $0.portName }.joined(separator: ", ")
-            status = "Audio configured - Output: \(outputDescription)"
+            status = "Audio configured for background - Output: \(outputDescription)"
             
-            print("🎵 Audio route: \(outputDescription)")
+            print("🎵 Background audio enabled - Route: \(outputDescription)")
             print("🎵 Available outputs: \(audioSession.availableInputs?.map { $0.portName } ?? [])")
         } catch {
             status = "Audio session error: \(error.localizedDescription)"
+            print("❌ Audio session setup failed: \(error)")
         }
     }
     
@@ -225,5 +242,29 @@ class AudioReceiver: ObservableObject {
         print("🎵 Scheduled audio buffer \(audioBufferCount) with \(frameCount) frames")
         print("🎵 Player node isPlaying: \(playerNode.isPlaying)")
         print("🎵 Audio engine isRunning: \(audioEngine?.isRunning ?? false)")
+    }
+    
+    // MARK: - Background Task Management
+    
+    private func setupBackgroundTask() {
+        backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "AudioStreaming") { [weak self] in
+            // Background task is about to expire
+            print("⚠️ Background task expiring, ending task")
+            self?.endBackgroundTask()
+        }
+        
+        if backgroundTaskID != .invalid {
+            print("✅ Background task started: \(backgroundTaskID.rawValue)")
+        } else {
+            print("❌ Failed to start background task")
+        }
+    }
+    
+    private func endBackgroundTask() {
+        if backgroundTaskID != .invalid {
+            print("🛑 Ending background task: \(backgroundTaskID.rawValue)")
+            UIApplication.shared.endBackgroundTask(backgroundTaskID)
+            backgroundTaskID = .invalid
+        }
     }
 }
