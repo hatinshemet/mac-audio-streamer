@@ -17,6 +17,8 @@ Since M1 Macs don't support direct MFi hearing aid connections, this project bri
 
 ## 🚀 Quick Start
 
+> **💡 No Localhost Conflicts**: This setup avoids using port 3000 (localhost) so you can use it for other projects. We use GitHub Pages for QR codes instead.
+
 ### 1. Clone the Repository
 ```bash
 git clone https://github.com/hatinshemet/mac-audio-streamer.git
@@ -35,12 +37,17 @@ The setup script will:
 - ✅ Update QR code with your IP
 - ✅ Create start script and instructions
 
-### 3. Start the Server
+### 3. Start Audio Streaming (No Localhost Conflicts)
 ```bash
-./start-server.sh
+./start-audio-only.sh
 ```
 
-### 4. Connect Your iPhone
+### 4. Get Connection Info
+```bash
+./show-ip.sh
+```
+
+### 5. Connect Your iPhone
 - Open the AudioReceiver app
 - Tap "Scan QR Code"
 - Point camera at the QR code
