@@ -13,6 +13,11 @@ class AudioReceiver: ObservableObject {
     private let port: UInt16 = 3001
     private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
     
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+        endBackgroundTask()
+    }
+    
     func startReceiving() {
         status = "Starting..."
         setupBackgroundTask()
@@ -78,8 +83,8 @@ class AudioReceiver: ObservableObject {
                 ]
             )
             
-            // Enable background audio
-            try audioSession.setActive(true, options: [])
+            // Enable background audio with proper options
+            try audioSession.setActive(true, options: [.notifyOthersOnDeactivation])
             
             // Check current audio route
             let currentRoute = audioSession.currentRoute
@@ -88,6 +93,10 @@ class AudioReceiver: ObservableObject {
             
             print("🎵 Background audio enabled - Route: \(outputDescription)")
             print("🎵 Available outputs: \(audioSession.availableInputs?.map { $0.portName } ?? [])")
+            
+            // Set up audio session interruption handling
+            setupAudioSessionNotifications()
+            
         } catch {
             status = "Audio session error: \(error.localizedDescription)"
             print("❌ Audio session setup failed: \(error)")
@@ -128,12 +137,17 @@ class AudioReceiver: ObservableObject {
         audioEngine.attach(playerNode)
         audioEngine.connect(playerNode, to: audioEngine.mainMixerNode, format: audioFormat)
         
+        // Set up audio engine to handle interruptions
+        audioEngine.prepare()
+        
         do {
             try audioEngine.start()
             playerNode.play()
-            status = "Audio engine started"
+            status = "Audio engine started for background playback"
+            print("🎵 Audio engine started and ready for background")
         } catch {
             status = "Audio engine error: \(error.localizedDescription)"
+            print("❌ Audio engine failed to start: \(error)")
         }
     }
     
@@ -265,6 +279,109 @@ class AudioReceiver: ObservableObject {
             print("🛑 Ending background task: \(backgroundTaskID.rawValue)")
             UIApplication.shared.endBackgroundTask(backgroundTaskID)
             backgroundTaskID = .invalid
+        }
+    }
+    
+    // MARK: - Audio Session Notifications
+    
+    private func setupAudioSessionNotifications() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAudioSessionInterruption),
+            name: AVAudioSession.interruptionNotification,
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAudioSessionRouteChange),
+            name: AVAudioSession.routeChangeNotification,
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAppDidEnterBackground),
+            name: UIApplication.didEnterBackgroundNotification,
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAppWillEnterForeground),
+            name: UIApplication.willEnterForegroundNotification,
+            object: nil
+        )
+    }
+    
+    @objc private func handleAudioSessionInterruption(notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+            return
+        }
+        
+        switch type {
+        case .began:
+            print("🔇 Audio session interrupted")
+            DispatchQueue.main.async {
+                self.status = "Audio interrupted"
+            }
+        case .ended:
+            print("🔊 Audio session interruption ended")
+            // Reactivate audio session
+            do {
+                try AVAudioSession.sharedInstance().setActive(true)
+                DispatchQueue.main.async {
+                    self.status = "Audio resumed"
+                }
+            } catch {
+                print("❌ Failed to reactivate audio session: \(error)")
+            }
+        @unknown default:
+            break
+        }
+    }
+    
+    @objc private func handleAudioSessionRouteChange(notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
+              let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else {
+            return
+        }
+        
+        switch reason {
+        case .oldDeviceUnavailable:
+            print("🔌 Audio device disconnected")
+        case .newDeviceAvailable:
+            print("🔌 New audio device connected")
+        default:
+            break
+        }
+        
+        // Update status with current route
+        let currentRoute = AVAudioSession.sharedInstance().currentRoute
+        let outputDescription = currentRoute.outputs.map { $0.portName }.joined(separator: ", ")
+        DispatchQueue.main.async {
+            self.status = "Audio route: \(outputDescription)"
+        }
+    }
+    
+    @objc private func handleAppDidEnterBackground() {
+        print("📱 App entered background - maintaining audio session")
+        // Keep the audio session active
+        do {
+            try AVAudioSession.sharedInstance().setActive(true)
+            print("✅ Audio session kept active in background")
+        } catch {
+            print("❌ Failed to keep audio session active: \(error)")
+        }
+    }
+    
+    @objc private func handleAppWillEnterForeground() {
+        print("📱 App entering foreground")
+        DispatchQueue.main.async {
+            self.status = "App in foreground - audio active"
         }
     }
 }
