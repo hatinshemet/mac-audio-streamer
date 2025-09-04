@@ -6,6 +6,8 @@ An iOS app that receives audio streams from a Mac and plays them through the iPh
 
 - **QR Code Connection**: Easy setup by scanning a QR code from the Mac server
 - **Low Latency Audio**: Optimized for real-time audio streaming with minimal delay
+- **Background Audio Support**: Continues playing when app is backgrounded or screen dims
+- **Screen Dimming Prevention**: Maintains audio quality by preventing screen from dimming
 - **MFi Hearing Aid Support**: Compatible with Made for iPhone hearing aids
 - **Multiple Output Options**: Plays through iPhone speakers or Bluetooth devices
 - **Real-time Status**: Shows connection status and audio buffer information
@@ -58,6 +60,8 @@ The app requires camera permission for QR code scanning. This is automatically r
 
 ### Audio Session Configuration
 - Category: `.playback` with speaker and Bluetooth support
+- Background audio capability enabled in Info.plist
+- Screen dimming prevention for consistent quality
 - Optimized for hearing aid compatibility
 - Automatic audio route management
 

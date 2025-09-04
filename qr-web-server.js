@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 3000;
 // Get Mac's IP address (this will be your home IP)
 const os = require('os');
 const networkInterfaces = os.networkInterfaces();
-let macIP = '127.0.0.1';
+let macIP = '87.70.229.34';
 
 for (const interfaceName in networkInterfaces) {
     const interfaces = networkInterfaces[interfaceName];

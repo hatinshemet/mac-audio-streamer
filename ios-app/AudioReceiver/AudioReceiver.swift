@@ -12,10 +12,12 @@ class AudioReceiver: ObservableObject {
     private var udpConnection: NWConnection?
     private let port: UInt16 = 3001
     private var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+    private var backgroundTimer: Timer?
     
     deinit {
         NotificationCenter.default.removeObserver(self)
         endBackgroundTask()
+        backgroundTimer?.invalidate()
     }
     
     func startReceiving() {
@@ -32,6 +34,7 @@ class AudioReceiver: ObservableObject {
         audioEngine?.stop()
         udpConnection?.cancel()
         endBackgroundTask()
+        backgroundTimer?.invalidate()
         isReceiving = false
         audioBufferCount = 0
         status = "Ready"
@@ -71,28 +74,34 @@ class AudioReceiver: ObservableObject {
         do {
             let audioSession = AVAudioSession.sharedInstance()
             
-            // Configure for background audio playback with hearing aid support
+            // Use .playAndRecord category for better background audio support
+            // This category is more likely to continue playing in background
             try audioSession.setCategory(
-                .playback, 
+                .playAndRecord, 
                 mode: .default, 
                 options: [
                     .defaultToSpeaker, 
                     .allowBluetooth, 
                     .allowBluetoothA2DP,
-                    .mixWithOthers  // Allow mixing with other audio (like Zoom)
+                    .mixWithOthers,  // Allow mixing with other audio (like Zoom)
+                    .duckOthers      // Duck other audio when playing
                 ]
             )
             
-            // Enable background audio with proper options
+            // Set preferred sample rate and buffer duration for low latency
+            try audioSession.setPreferredSampleRate(44100)
+            try audioSession.setPreferredIOBufferDuration(0.005) // 5ms buffer for low latency
+            
+            // Activate the session with options that prevent pausing
             try audioSession.setActive(true, options: [.notifyOthersOnDeactivation])
             
             // Check current audio route
             let currentRoute = audioSession.currentRoute
             let outputDescription = currentRoute.outputs.map { $0.portName }.joined(separator: ", ")
-            status = "Audio configured for background - Output: \(outputDescription)"
+            status = "Audio configured for aggressive background - Output: \(outputDescription)"
             
-            print("🎵 Background audio enabled - Route: \(outputDescription)")
-            print("🎵 Available outputs: \(audioSession.availableInputs?.map { $0.portName } ?? [])")
+            print("🎵 Aggressive background audio enabled - Route: \(outputDescription)")
+            print("🎵 Sample rate: \(audioSession.sampleRate), Buffer: \(audioSession.ioBufferDuration)")
             
             // Set up audio session interruption handling
             setupAudioSessionNotifications()
@@ -143,8 +152,8 @@ class AudioReceiver: ObservableObject {
         do {
             try audioEngine.start()
             playerNode.play()
-            status = "Audio engine started for background playback"
-            print("🎵 Audio engine started and ready for background")
+            status = "Audio engine started for aggressive background playback"
+            print("🎵 Audio engine started and ready for aggressive background")
         } catch {
             status = "Audio engine error: \(error.localizedDescription)"
             print("❌ Audio engine failed to start: \(error)")
@@ -181,8 +190,17 @@ class AudioReceiver: ObservableObject {
     
     private var lastStatusUpdate = Date()
     private var audioBufferCount = 0
+    private var audioBufferQueue = DispatchQueue(label: "audioBuffer", qos: .userInitiated)
+    private var isProcessingAudio = false
     
     private func processAudioData(_ data: Data) {
+        // Process audio on dedicated queue to prevent blocking
+        audioBufferQueue.async { [weak self] in
+            self?.processAudioDataInternal(data)
+        }
+    }
+    
+    private func processAudioDataInternal(_ data: Data) {
         // Only update status every 0.5 seconds to avoid rapid switching
         let now = Date()
         if now.timeIntervalSince(lastStatusUpdate) > 0.5 {
@@ -196,6 +214,12 @@ class AudioReceiver: ObservableObject {
         guard let playerNode = playerNode else { 
             print("No player node available")
             return 
+        }
+        
+        // Ensure player node is playing
+        if !playerNode.isPlaying {
+            playerNode.play()
+            print("🎵 Restarted player node")
         }
         
         // Create audio format for 16-bit PCM, 44.1kHz, stereo
@@ -242,8 +266,8 @@ class AudioReceiver: ObservableObject {
             }
         }
         
-        // Schedule the buffer for playback
-        playerNode.scheduleBuffer(audioBuffer, at: nil, options: [], completionHandler: { [weak self] in
+        // Schedule the buffer for playback with immediate scheduling
+        playerNode.scheduleBuffer(audioBuffer, at: nil, options: [.interrupts], completionHandler: { [weak self] in
             self?.audioBufferCount += 1
             // Only update status occasionally
             if self?.audioBufferCount ?? 0 % 10 == 0 {
@@ -272,6 +296,11 @@ class AudioReceiver: ObservableObject {
         } else {
             print("❌ Failed to start background task")
         }
+        
+        // Start a timer to keep the background task alive and maintain audio
+        backgroundTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.maintainBackgroundAudio()
+        }
     }
     
     private func endBackgroundTask() {
@@ -279,6 +308,32 @@ class AudioReceiver: ObservableObject {
             print("🛑 Ending background task: \(backgroundTaskID.rawValue)")
             UIApplication.shared.endBackgroundTask(backgroundTaskID)
             backgroundTaskID = .invalid
+        }
+        backgroundTimer?.invalidate()
+    }
+    
+    private func maintainBackgroundAudio() {
+        // Continuously ensure audio session and engine are active
+        do {
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            print("❌ Failed to maintain audio session: \(error)")
+        }
+        
+        // Ensure audio engine keeps running
+        if let audioEngine = audioEngine, !audioEngine.isRunning {
+            do {
+                try audioEngine.start()
+                print("✅ Audio engine restarted by background timer")
+            } catch {
+                print("❌ Failed to restart audio engine: \(error)")
+            }
+        }
+        
+        // Ensure player node keeps playing
+        if let playerNode = playerNode, !playerNode.isPlaying {
+            playerNode.play()
+            print("✅ Player node restarted by background timer")
         }
     }
     
@@ -328,12 +383,25 @@ class AudioReceiver: ObservableObject {
                 self.status = "Audio interrupted"
             }
         case .ended:
-            print("🔊 Audio session interruption ended")
-            // Reactivate audio session
+            print("🔊 Audio session interruption ended - resuming immediately")
+            // Reactivate audio session immediately
             do {
                 try AVAudioSession.sharedInstance().setActive(true)
+                
+                // Restart audio engine if needed
+                if let audioEngine = audioEngine, !audioEngine.isRunning {
+                    try audioEngine.start()
+                    print("✅ Audio engine restarted after interruption")
+                }
+                
+                // Restart player node if needed
+                if let playerNode = playerNode, !playerNode.isPlaying {
+                    playerNode.play()
+                    print("✅ Player node restarted after interruption")
+                }
+                
                 DispatchQueue.main.async {
-                    self.status = "Audio resumed"
+                    self.status = "Audio resumed immediately"
                 }
             } catch {
                 print("❌ Failed to reactivate audio session: \(error)")
@@ -368,13 +436,30 @@ class AudioReceiver: ObservableObject {
     }
     
     @objc private func handleAppDidEnterBackground() {
-        print("📱 App entered background - maintaining audio session")
+        print("📱 App entered background - maintaining audio session and engine")
+        
         // Keep the audio session active
         do {
             try AVAudioSession.sharedInstance().setActive(true)
             print("✅ Audio session kept active in background")
         } catch {
             print("❌ Failed to keep audio session active: \(error)")
+        }
+        
+        // Ensure audio engine keeps running
+        if let audioEngine = audioEngine, !audioEngine.isRunning {
+            do {
+                try audioEngine.start()
+                print("✅ Audio engine restarted in background")
+            } catch {
+                print("❌ Failed to restart audio engine in background: \(error)")
+            }
+        }
+        
+        // Ensure player node keeps playing
+        if let playerNode = playerNode, !playerNode.isPlaying {
+            playerNode.play()
+            print("✅ Player node restarted in background")
         }
     }
     

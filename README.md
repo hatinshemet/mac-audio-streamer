@@ -8,6 +8,8 @@ Since M1 Macs don't support direct MFi hearing aid connections, this project bri
 
 - **Real-time audio streaming** with sub-100ms latency
 - **QR code connection** - no manual IP entry needed
+- **Background audio support** - continues playing when app is backgrounded
+- **Screen dimming prevention** - maintains audio quality during streaming
 - **Beautiful iOS app** with custom logo
 - **Works on local WiFi** networks
 - **Easy setup** with automated configuration
@@ -60,6 +62,8 @@ The setup script will:
 ### App Features
 - QR code scanning for easy connection
 - Real-time audio streaming
+- Background audio support - continues when app is backgrounded
+- Screen dimming prevention for consistent audio quality
 - Custom app logo
 - Connection status display
 
@@ -81,6 +85,8 @@ The setup script will:
 - **Sample Rate**: 44.1kHz
 - **Channels**: Stereo
 - **Latency**: <100ms
+- **Buffer Duration**: 23ms (optimized for quality)
+- **Background Audio**: Supported with UIBackgroundModes
 
 ## 📋 Manual Setup (Alternative)
 
