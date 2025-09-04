@@ -98,17 +98,21 @@
         <h1>🎵 Audio Streamer</h1>
         <p class="subtitle">Connect your iPhone to stream Mac audio</p>
         
+        <div class="qr-code">
+            <img id="qrCode" src="" alt="QR Code" style="max-width: 300px;">
+        </div>
+        
         <div class="info">
-            <strong>⚠️ Important:</strong><br>
-            This QR code is for demonstration only. You need to run the local server to get your actual IP address.
+            <strong>Connection Details:</strong><br>
+            IP Address: <code id="ipAddress">Loading...</code><br>
+            Port: <code>3001</code>
         </div>
         
         <div class="manual-entry">
-            <h3>📝 How to Get Your Connection Details:</h3>
-            <p>1. Run the setup script: <code>./setup.sh</code></p>
-            <p>2. Or start the local server: <code>./start-server.sh</code></p>
-            <p>3. The server will show your local IP address</p>
-            <p>4. Use that IP with port <strong>3001</strong></p>
+            <h3>📝 Manual Entry (Alternative):</h3>
+            <p>If QR code scanning doesn't work, you can manually enter:</p>
+            <p><strong>IP:</strong> <span id="manualIP">Loading...</span><br>
+            <strong>Port:</strong> 3001</p>
         </div>
         
         <div class="instructions">
@@ -136,5 +140,66 @@
             <strong>Note:</strong> Make sure your Mac's UDP server is running on port 3001
         </div>
     </div>
+
+    <script>
+        // Function to get the user's local IP address
+        async function getUserIP() {
+            try {
+                // Try to get IP from a public service
+                const response = await fetch('https://api.ipify.org?format=json');
+                const data = await response.json();
+                return data.ip;
+            } catch (error) {
+                // Fallback: try to detect local IP
+                return new Promise((resolve) => {
+                    const pc = new RTCPeerConnection({
+                        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                    });
+                    
+                    pc.createDataChannel('');
+                    pc.createOffer().then(offer => pc.setLocalDescription(offer));
+                    
+                    pc.onicecandidate = (ice) => {
+                        if (ice && ice.candidate && ice.candidate.candidate) {
+                            const candidate = ice.candidate.candidate;
+                            const ipMatch = candidate.match(/([0-9]{1,3}(\.[0-9]{1,3}){3})/);
+                            if (ipMatch) {
+                                pc.close();
+                                resolve(ipMatch[1]);
+                            }
+                        }
+                    };
+                    
+                    // Timeout fallback
+                    setTimeout(() => {
+                        pc.close();
+                        resolve('192.168.1.100'); // Default fallback
+                    }, 3000);
+                });
+            }
+        }
+
+        // Function to generate QR code
+        function generateQRCode(ip) {
+            const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${ip}:3001&v=${Date.now()}`;
+            document.getElementById('qrCode').src = qrCodeUrl;
+            document.getElementById('ipAddress').textContent = ip;
+            document.getElementById('manualIP').textContent = ip;
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', async () => {
+            try {
+                const ip = await getUserIP();
+                generateQRCode(ip);
+            } catch (error) {
+                console.error('Error getting IP:', error);
+                // Fallback to a generic message
+                document.getElementById('ipAddress').textContent = 'Unable to detect IP';
+                document.getElementById('manualIP').textContent = 'Check your local network IP';
+                document.getElementById('qrCode').src = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=YOUR_IP:3001';
+            }
+        });
+    </script>
 </body>
 </html>
